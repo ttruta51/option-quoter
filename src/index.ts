@@ -10,6 +10,19 @@ async function testDatabaseConnection() {
         console.log(`DB Host: ${config.db.host}:${config.db.port}`);
         console.log(`DB Name: ${config.db.database}`);
         console.log(`DB User: ${config.db.user}`);
+        console.log(`DB Password: ${config.db.password ? '***' + config.db.password.slice(-3) : 'NOT SET'}`);
+        
+        // Validate host format
+        if (!config.db.host || config.db.host.trim() === '') {
+            console.error('ERROR: DB_HOST is empty or not set!');
+            return false;
+        }
+        
+        if (config.db.host.includes('postgresql://') || config.db.host.includes('postgres://')) {
+            console.error('ERROR: DB_HOST should be just the hostname, not a full connection string!');
+            console.error('Example: db.xxxxx.supabase.co (not postgresql://postgres:pass@db.xxxxx...)');
+            return false;
+        }
         
         const result = await query('SELECT NOW() as current_time, version() as pg_version');
         console.log('Database connection successful!');
@@ -20,7 +33,13 @@ async function testDatabaseConnection() {
         console.error('Database connection failed:', error);
         if (error instanceof Error) {
             console.error('Error message:', error.message);
-            console.error('Error stack:', error.stack);
+            if (error.message.includes('EAI_AGAIN') || error.message.includes('getaddrinfo')) {
+                console.error('\n⚠️  DNS Resolution Error - This usually means:');
+                console.error('   1. DB_HOST is incorrect or incomplete');
+                console.error('   2. DB_HOST should be just the hostname (e.g., db.xxxxx.supabase.co)');
+                console.error('   3. Make sure there are no extra spaces or characters');
+                console.error('   4. For Supabase, use the host from: Project Settings → Database → Connection string');
+            }
         }
         return false;
     }
