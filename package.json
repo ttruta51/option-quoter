@@ -1,0 +1,31 @@
+{
+  "name": "option-quoter-gemini",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "fetch": "ts-node src/index.ts",
+    "setup-db": "ts-node src/db/setup-supabase.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "black-scholes": "^1.1.0",
+    "dotenv": "^17.2.3",
+    "luxon": "^3.7.2",
+    "pg": "^8.16.3",
+    "yahoo-finance2": "^3.10.2"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.15.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
