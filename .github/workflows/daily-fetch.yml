@@ -36,9 +36,9 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
-          TICKERS: ${{ secrets.TICKERS }}
-          RISK_FREE_RATE: ${{ secrets.RISK_FREE_RATE || '0.045' }}
-        run: npm run fetch
+          TICKERS: ${{ vars.TICKERS }}
+          RISK_FREE_RATE: ${{ vars.RISK_FREE_RATE }}
+        run: npm run fetch || (echo "=== FETCH SCRIPT FAILED ===" && exit 1)
       
       - name: Upload logs on failure
         if: failure()
