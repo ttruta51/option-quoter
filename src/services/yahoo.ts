@@ -10,10 +10,13 @@ const yahooFinance = new YahooFinance();
 export class YahooFinanceService {
 
     /**
-     * Fetches option quotes for a given ticker for expirations within the next 14 days.
+     * Fetches option quotes for a given ticker.
+     * For SPY, RSP, TLT: fetches expirations up to 70 days out.
+     * For other tickers: fetches expirations up to 14 days out.
      */
     async fetchOptionQuotes(ticker: string): Promise<OptionQuote[]> {
-        console.log(`Fetching options for ${ticker}...`);
+        const expirationDays = config.getExpirationDays(ticker);
+        console.log(`Fetching options for ${ticker} (expirations up to ${expirationDays} days out)...`);
 
         try {
             // First, fetch the summary to get available expiration dates and stock price
@@ -31,15 +34,15 @@ export class YahooFinanceService {
             }
 
             const now = DateTime.now();
-            const fourteenDaysFromNow = now.plus({ days: 14 });
+            const maxDaysFromNow = now.plus({ days: expirationDays });
 
-            // Filter expirations: must be in the future and within 14 days
+            // Filter expirations: must be in the future and within the configured days
             const targetExpirations = summary.expirationDates.filter((date: Date) => {
                 const expDate = DateTime.fromJSDate(new Date(date));
-                return expDate >= now.startOf('day') && expDate <= fourteenDaysFromNow;
+                return expDate >= now.startOf('day') && expDate <= maxDaysFromNow;
             });
 
-            console.log(`Found ${targetExpirations.length} expirations for ${ticker} within 14 days.`);
+            console.log(`Found ${targetExpirations.length} expirations for ${ticker} within ${expirationDays} days.`);
 
             const allQuotes: OptionQuote[] = [];
 
