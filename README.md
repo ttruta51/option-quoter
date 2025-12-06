@@ -19,7 +19,13 @@ This project fetches end-of-day option quotes for configured stock tickers using
     DB_NAME=option_quotes
     TICKERS=AAPL,MSFT,GOOGL
     RISK_FREE_RATE=0.045
+    EXTENDED_EXPIRATION_TICKERS=SPY,RSP,TLT
     ```
+    
+    **Environment Variables:**
+    - `TICKERS`: Comma-separated list of stock tickers to fetch options for
+    - `EXTENDED_EXPIRATION_TICKERS`: Comma-separated list of tickers that should fetch options up to 70 days out (default is 14 days for other tickers)
+    - `RISK_FREE_RATE`: Risk-free rate for Greeks calculations (default: 0.045)
 
 3.  **Database Setup**:
     Ensure you have a PostgreSQL instance running. Then run:
@@ -65,16 +71,20 @@ This project is configured to run automatically using Supabase (free PostgreSQL)
    - Create a new repository (public repos get free GitHub Actions)
    - Push your code to the repository
 
-2. **Configure GitHub Secrets**:
+2. **Configure GitHub Secrets and Variables**:
    - Go to your repository → **Settings** → **Secrets and variables** → **Actions**
-   - Click **New repository secret** and add the following:
+   
+   **Secrets** (click "New repository secret"):
      - `DB_HOST`: Your Supabase host (e.g., `db.xxxxx.supabase.co`)
      - `DB_PORT`: `6543` (for connection pooling, recommended) or `5432` (direct connection)
      - `DB_USER`: `postgres`
      - `DB_PASSWORD`: Your Supabase database password
      - `DB_NAME`: `postgres`
+   
+   **Variables** (click "Variables" tab, then "New repository variable"):
      - `TICKERS`: Comma-separated list (e.g., `AAPL,MSFT,GOOGL`)
      - `RISK_FREE_RATE`: Optional, defaults to `0.045` if not set
+     - `EXTENDED_EXPIRATION_TICKERS`: Comma-separated list of tickers to fetch 70 days of expirations (e.g., `SPY,RSP,TLT`). Leave empty or omit for default 14-day behavior.
 
 3. **Test the workflow**:
    - Go to **Actions** tab in your repository

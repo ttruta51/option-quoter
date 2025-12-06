@@ -1,7 +1,10 @@
 import 'dotenv/config';
 
-// Tickers that should fetch options up to 70 days out (default is 14 days)
-const EXTENDED_EXPIRATION_TICKERS = ['SPY', 'RSP', 'TLT'];
+// Parse tickers that should fetch options up to 70 days out (default is 14 days)
+const extendedExpirationTickers = (process.env.EXTENDED_EXPIRATION_TICKERS || '')
+    .split(',')
+    .map(t => t.trim().toUpperCase())
+    .filter(t => t.length > 0);
 
 export const config = {
     db: {
@@ -15,6 +18,6 @@ export const config = {
     riskFreeRate: parseFloat(process.env.RISK_FREE_RATE || '0.045'),
     // Get expiration days for a ticker (70 for extended tickers, 14 for others)
     getExpirationDays: (ticker: string): number => {
-        return EXTENDED_EXPIRATION_TICKERS.includes(ticker.toUpperCase()) ? 70 : 14;
+        return extendedExpirationTickers.includes(ticker.toUpperCase()) ? 70 : 14;
     },
 };
