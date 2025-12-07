@@ -67,9 +67,12 @@ async function main() {
     
     // Fetch current risk-free rate
     console.log('Fetching current risk-free rate (10-year Treasury yield)...');
-    const riskFreeRate = await fetchRiskFreeRate();
-    config.riskFreeRate = riskFreeRate;
-    console.log(`Risk-free rate: ${(riskFreeRate * 100).toFixed(2)}%`);
+    const riskFreeRateResult = await fetchRiskFreeRate();
+    config.riskFreeRate = riskFreeRateResult.rate;
+    console.log(`Risk-free rate: ${(riskFreeRateResult.rate * 100).toFixed(2)}% (source: ${riskFreeRateResult.source})`);
+    
+    // Save risk-free rate to database
+    await storageService.saveRiskFreeRate(riskFreeRateResult.rate, riskFreeRateResult.source);
     
     if (config.tickers.length === 0) {
         console.error('\nERROR: No tickers configured!');

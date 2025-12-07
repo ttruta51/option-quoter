@@ -102,6 +102,22 @@ export class StorageService {
 
         await query(text, values);
     }
+
+    /**
+     * Save the risk-free rate to the database
+     */
+    async saveRiskFreeRate(rate: number, source: string = 'yahoo_finance'): Promise<void> {
+        try {
+            await query(
+                'INSERT INTO risk_free_rate (timestamp, rate, source) VALUES (NOW(), $1, $2)',
+                [rate, source]
+            );
+            console.log(`Saved risk-free rate: ${(rate * 100).toFixed(2)}% (source: ${source})`);
+        } catch (error) {
+            console.error('Error saving risk-free rate:', error);
+            // Don't throw - this is not critical for the main workflow
+        }
+    }
 }
 
 export const storageService = new StorageService();

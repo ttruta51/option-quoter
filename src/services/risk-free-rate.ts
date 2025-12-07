@@ -10,11 +10,16 @@ const FALLBACK_RATE = 0.045;
 
 const yahooFinance = new YahooFinance();
 
+export interface RiskFreeRateResult {
+    rate: number;
+    source: string;
+}
+
 /**
  * Fetches the current 10-year Treasury yield from Yahoo Finance (^TNX)
- * Returns the rate as a decimal (e.g., 0.045 for 4.5%)
+ * Returns the rate as a decimal (e.g., 0.045 for 4.5%) and the source
  */
-export async function fetchRiskFreeRate(): Promise<number> {
+export async function fetchRiskFreeRate(): Promise<RiskFreeRateResult> {
     try {
         // ^TNX is the Yahoo Finance symbol for 10-Year Treasury Note yield
         const quote = await yahooFinance.quote('^TNX');
@@ -37,7 +42,7 @@ export async function fetchRiskFreeRate(): Promise<number> {
             throw new Error(`Invalid rate value: ${ratePercent}`);
         }
         
-        return rate;
+        return { rate, source: 'yahoo_finance' };
         
     } catch (error) {
         console.warn(`Warning: Failed to fetch risk-free rate from Yahoo Finance:`, error instanceof Error ? error.message : error);
@@ -50,7 +55,7 @@ export async function fetchRiskFreeRate(): Promise<number> {
  * Alternative method: Fetch from Treasury.gov API
  * This uses a simpler JSON endpoint as fallback
  */
-async function fetchRiskFreeRateAlternative(): Promise<number> {
+async function fetchRiskFreeRateAlternative(): Promise<RiskFreeRateResult> {
     try {
         // Try using Treasury.gov fiscal data API
         const url = 'https://api.fiscaldata.treasury.gov/services/api/v1/accounting/od/avg_interest_rates?filter=security_desc:eq:"Treasury 10-Year"&sort=-record_date&page[size]=1';
@@ -68,7 +73,7 @@ async function fetchRiskFreeRateAlternative(): Promise<number> {
             if (rateString) {
                 const rate = parseFloat(rateString) / 100;
                 if (!isNaN(rate) && rate > 0) {
-                    return rate;
+                    return { rate, source: 'treasury_gov' };
                 }
             }
         }
@@ -77,7 +82,7 @@ async function fetchRiskFreeRateAlternative(): Promise<number> {
         
     } catch (error) {
         console.warn(`Alternative API also failed, using fallback rate: ${(FALLBACK_RATE * 100).toFixed(2)}%`);
-        return FALLBACK_RATE;
+        return { rate: FALLBACK_RATE, source: 'fallback' };
     }
 }
 

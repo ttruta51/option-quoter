@@ -16,6 +16,11 @@ async function setupDatabase() {
         const migrateGreeksSql = fs.readFileSync(migrateGreeksPath, 'utf8');
         await query(migrateGreeksSql);
 
+        // Read and execute migrate-risk-free-rate.sql
+        const migrateRiskFreeRatePath = path.join(__dirname, 'migrate-risk-free-rate.sql');
+        const migrateRiskFreeRateSql = fs.readFileSync(migrateRiskFreeRatePath, 'utf8');
+        await query(migrateRiskFreeRateSql);
+
         console.log('Database schema applied successfully.');
     } catch (error) {
         console.error('Error setting up database:', error);
