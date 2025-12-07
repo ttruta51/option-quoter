@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { config } from './config';
 import { yahooService } from './services/yahoo';
 import { storageService } from './services/storage';
+import { fetchRiskFreeRate } from './services/risk-free-rate';
 import { query, closeDb } from './db';
 
 async function testDatabaseConnection() {
@@ -63,7 +64,12 @@ async function main() {
     } else {
         console.log(`All tickers will use 14-day expiration window`);
     }
-    console.log(`Risk-free rate: ${config.riskFreeRate}`);
+    
+    // Fetch current risk-free rate
+    console.log('Fetching current risk-free rate (10-year Treasury yield)...');
+    const riskFreeRate = await fetchRiskFreeRate();
+    config.riskFreeRate = riskFreeRate;
+    console.log(`Risk-free rate: ${(riskFreeRate * 100).toFixed(2)}%`);
     
     if (config.tickers.length === 0) {
         console.error('\nERROR: No tickers configured!');

@@ -15,7 +15,9 @@ export const config = {
         database: process.env.DB_NAME || 'option_quotes',
     },
     tickers: (process.env.TICKERS || '').split(',').map(t => t.trim()).filter(t => t.length > 0),
-    riskFreeRate: parseFloat(process.env.RISK_FREE_RATE || '0.045'),
+    // Risk-free rate is now fetched dynamically, but we keep this for backward compatibility
+    // It will be set at runtime by fetching from Treasury.gov
+    riskFreeRate: 0.045, // This will be overridden at runtime
     // Get expiration days for a ticker (70 for extended tickers, 14 for others)
     getExpirationDays: (ticker: string): number => {
         return extendedExpirationTickers.includes(ticker.toUpperCase()) ? 70 : 14;

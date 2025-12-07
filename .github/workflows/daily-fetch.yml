@@ -37,7 +37,6 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
           TICKERS: ${{ vars.TICKERS }}
-          RISK_FREE_RATE: ${{ vars.RISK_FREE_RATE }}
           EXTENDED_EXPIRATION_TICKERS: ${{ vars.EXTENDED_EXPIRATION_TICKERS }}
         run: npm run fetch || (echo "=== FETCH SCRIPT FAILED ===" && exit 1)
       
