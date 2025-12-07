@@ -23,9 +23,11 @@ This project fetches end-of-day option quotes for configured stock tickers using
     ```
     
     **Environment Variables:**
-    - `TICKERS`: Comma-separated list of stock tickers to fetch options for
-    - `EXTENDED_EXPIRATION_TICKERS`: Comma-separated list of tickers that should fetch options up to 70 days out (default is 14 days for other tickers)
+    - `TICKERS`: Comma-separated list of stock tickers to fetch options for (e.g., `AAPL,MSFT,SPY,TLT`)
+    - `EXTENDED_EXPIRATION_TICKERS`: Comma-separated list of tickers (from your TICKERS list) that should fetch options up to 70 days out instead of the default 14 days. Only tickers that are also in `TICKERS` will be processed. (e.g., `SPY,RSP,TLT`)
     - `RISK_FREE_RATE`: Risk-free rate for Greeks calculations (default: 0.045)
+    
+    **Note:** To fetch options for a ticker, it must be in the `TICKERS` variable. The `EXTENDED_EXPIRATION_TICKERS` variable only controls the expiration window (70 vs 14 days) for tickers that are already in `TICKERS`.
 
 3.  **Database Setup**:
     Ensure you have a PostgreSQL instance running. Then run:
@@ -82,9 +84,11 @@ This project is configured to run automatically using Supabase (free PostgreSQL)
      - `DB_NAME`: `postgres`
    
    **Variables** (click "Variables" tab, then "New repository variable"):
-     - `TICKERS`: Comma-separated list (e.g., `AAPL,MSFT,GOOGL`)
+     - `TICKERS`: Comma-separated list of tickers to fetch options for (e.g., `AAPL,MSFT,SPY,TLT`)
      - `RISK_FREE_RATE`: Optional, defaults to `0.045` if not set
-     - `EXTENDED_EXPIRATION_TICKERS`: Comma-separated list of tickers to fetch 70 days of expirations (e.g., `SPY,RSP,TLT`). Leave empty or omit for default 14-day behavior.
+     - `EXTENDED_EXPIRATION_TICKERS`: Comma-separated list of tickers (from your TICKERS list) that should fetch 70 days of expirations instead of 14 days (e.g., `SPY,RSP,TLT`). Only tickers that are also in `TICKERS` will be processed. Leave empty or omit for default 14-day behavior for all tickers.
+     
+     **Important:** To fetch options for any ticker (including SPY, RSP, TLT), you must add it to the `TICKERS` variable. The `EXTENDED_EXPIRATION_TICKERS` variable only controls how many days of expirations to fetch (70 vs 14) for tickers that are already in `TICKERS`.
 
 3. **Test the workflow**:
    - Go to **Actions** tab in your repository
