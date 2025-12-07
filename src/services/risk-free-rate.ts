@@ -66,10 +66,10 @@ async function fetchRiskFreeRateAlternative(): Promise<RiskFreeRateResult> {
             throw new Error(`Treasury API returned status ${response.status}`);
         }
         
-        const data = await response.json();
+        const data = await response.json() as any;
         
-        if (data.data && data.data.length > 0) {
-            const rateString = data.data[0].avg_interest_rate_amt;
+        if (data && data.data && Array.isArray(data.data) && data.data.length > 0) {
+            const rateString = data.data[0]?.avg_interest_rate_amt;
             if (rateString) {
                 const rate = parseFloat(rateString) / 100;
                 if (!isNaN(rate) && rate > 0) {
