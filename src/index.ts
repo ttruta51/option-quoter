@@ -52,7 +52,17 @@ async function main() {
     
     // Validate configuration
     console.log('\nConfiguration:');
-    console.log(`Tickers to process: ${config.tickers.length > 0 ? config.tickers.join(', ') : 'NONE - CHECK TICKERS SECRET!'}`);
+    console.log(`Tickers to process: ${config.tickers.length > 0 ? config.tickers.join(', ') : 'NONE - CHECK TICKERS VARIABLE!'}`);
+    const extendedTickers = (process.env.EXTENDED_EXPIRATION_TICKERS || '')
+        .split(',')
+        .map(t => t.trim().toUpperCase())
+        .filter(t => t.length > 0);
+    if (extendedTickers.length > 0) {
+        console.log(`Extended expiration tickers (70 days): ${extendedTickers.join(', ')}`);
+        console.log(`Other tickers (14 days): ${config.tickers.filter(t => !extendedTickers.includes(t.toUpperCase())).join(', ') || 'none'}`);
+    } else {
+        console.log(`All tickers will use 14-day expiration window`);
+    }
     console.log(`Risk-free rate: ${config.riskFreeRate}`);
     
     if (config.tickers.length === 0) {
