@@ -1,0 +1,26 @@
+name: Keep Workflows Alive
+
+# GitHub automatically disables scheduled workflows after 60 days of repo inactivity.
+# This workflow runs weekly to keep the repository "active" and prevent that.
+
+on:
+  schedule:
+    # Run every Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Keep alive
+        run: |
+          echo "## 🔄 Weekly Keep-Alive" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow runs weekly to prevent GitHub from auto-disabling scheduled workflows." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Your scheduled workflows remain active:" >> $GITHUB_STEP_SUMMARY
+          echo "- Daily Option Quote Fetch (Mon-Fri 5pm EST)" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor Data Collection (Mon-Fri 5:30pm EST)" >> $GITHUB_STEP_SUMMARY

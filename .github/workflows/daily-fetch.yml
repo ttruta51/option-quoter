@@ -10,17 +10,17 @@ on:
 jobs:
   fetch-quotes:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then
@@ -28,8 +28,9 @@ jobs:
           else
             npm install
           fi
-      
+
       - name: Run fetch script
+        id: fetch
         env:
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
@@ -38,16 +39,47 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           TICKERS: ${{ vars.TICKERS }}
           EXTENDED_EXPIRATION_TICKERS: ${{ vars.EXTENDED_EXPIRATION_TICKERS }}
-        run: npm run fetch || (echo "=== FETCH SCRIPT FAILED ===" && exit 1)
-      
+        run: |
+          npm run fetch 2>&1 | tee fetch-output.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Run health check
+        if: success()
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          TICKERS: ${{ vars.TICKERS }}
+        run: npm run health-check
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: fetch-logs
+          name: fetch-logs-${{ github.run_number }}
           path: |
+            fetch-output.log
             logs/*.log
-          retention-days: 7
+          retention-days: 30
 
+      - name: Report failure summary
+        if: failure()
+        run: |
+          echo "## ❌ Daily Fetch Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Last 50 lines of output:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -50 fetch-output.log >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No log file available"
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
+      - name: Report success summary
+        if: success()
+        run: |
+          echo "## ✅ Daily Fetch Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

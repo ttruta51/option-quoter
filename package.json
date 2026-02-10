@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "fetch": "ts-node src/index.ts",
+    "health-check": "ts-node src/health-check.ts",
     "setup-db": "ts-node src/db/setup-supabase.ts",
     "build": "tsc",
     "start": "node dist/index.js",

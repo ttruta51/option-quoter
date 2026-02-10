@@ -1,0 +1,78 @@
+name: Monitor Data Collection
+
+on:
+  schedule:
+    # Run 30 minutes after the main job (5:30 PM EST = 22:30 UTC)
+    - cron: '30 22 * * 1-5'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  verify-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run health check
+        id: health
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          TICKERS: ${{ vars.TICKERS }}
+        run: npm run health-check 2>&1 | tee health-output.log
+
+      - name: Upload health check log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: health-check-${{ github.run_number }}
+          path: health-output.log
+          retention-days: 30
+
+      - name: Create failure summary
+        if: failure()
+        run: |
+          echo "## ⚠️ Data Collection Alert" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The health check detected an issue with today's data collection." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Health Check Output:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat health-output.log >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No output available"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Possible causes:" >> $GITHUB_STEP_SUMMARY
+          echo "- The daily fetch job failed or didn't run" >> $GITHUB_STEP_SUMMARY
+          echo "- Database connection issues" >> $GITHUB_STEP_SUMMARY
+          echo "- Yahoo Finance API issues" >> $GITHUB_STEP_SUMMARY
+          echo "- Market holiday (no trading data available)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create success summary
+        if: success()
+        run: |
+          echo "## ✅ Data Collection Verified" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Today's data collection completed successfully." >> $GITHUB_STEP_SUMMARY
