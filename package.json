@@ -6,26 +6,29 @@
   "scripts": {
     "fetch": "ts-node src/index.ts",
     "health-check": "ts-node src/health-check.ts",
-    "setup-db": "ts-node src/db/setup-supabase.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "setup-db": "ts-node src/db/schema.ts",
+    "typecheck": "tsc --noEmit",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy",
+    "diff": "cdk diff"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-rds-data": "^3.1148.0",
     "black-scholes": "^1.1.0",
     "dotenv": "^17.2.3",
     "luxon": "^3.7.2",
-    "pg": "^8.16.3",
     "yahoo-finance2": "^3.13.0"
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.10.1",
-    "@types/pg": "^8.15.6",
+    "aws-cdk-lib": "^2.273.0",
+    "constructs": "^10.8.1",
+    "esbuild": "^0.28.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

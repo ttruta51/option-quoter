@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { query, closeDb } from './db';
+import { query } from './db';
 
-interface HealthCheckResult {
+export interface HealthCheckResult {
     success: boolean;
     message: string;
     details: {
@@ -13,7 +13,7 @@ interface HealthCheckResult {
     };
 }
 
-async function healthCheck(): Promise<HealthCheckResult> {
+export async function healthCheck(): Promise<HealthCheckResult> {
     const expectedTickers = (process.env.TICKERS || '')
         .split(',')
         .map(t => t.trim().toUpperCase())
@@ -38,15 +38,20 @@ async function healthCheck(): Promise<HealthCheckResult> {
         const quotesResult = await query(`
             SELECT
                 COUNT(*) as count,
-                array_agg(DISTINCT ticker) as tickers,
-                MAX(time) as last_time
+                MAX(time)::text as last_time
             FROM option_quotes
             WHERE time >= NOW() - INTERVAL '24 hours'
         `);
 
         const quotesCount = parseInt(quotesResult.rows[0].count, 10);
-        const tickersFound: string[] = quotesResult.rows[0].tickers || [];
-        const lastQuoteTime = quotesResult.rows[0].last_time;
+        const lastQuoteTime: string | null = quotesResult.rows[0].last_time ?? null;
+
+        const tickersResult = await query(`
+            SELECT DISTINCT ticker
+            FROM option_quotes
+            WHERE time >= NOW() - INTERVAL '24 hours'
+        `);
+        const tickersFound: string[] = tickersResult.rows.map(r => r.ticker);
 
         // Check risk-free rate
         const riskFreeResult = await query(`
@@ -88,7 +93,7 @@ async function healthCheck(): Promise<HealthCheckResult> {
                 tickersFound,
                 tickersMissing,
                 riskFreeRateSource,
-                lastQuoteTime: lastQuoteTime ? lastQuoteTime.toISOString() : null
+                lastQuoteTime
             }
         };
 
@@ -107,15 +112,12 @@ async function healthCheck(): Promise<HealthCheckResult> {
     }
 }
 
-async function main() {
+export function printHealthCheck(result: HealthCheckResult) {
     console.log('='.repeat(60));
     console.log('Option Quoter Health Check');
     console.log('='.repeat(60));
     console.log(`Time: ${new Date().toISOString()}`);
     console.log('');
-
-    const result = await healthCheck();
-
     console.log(`Status: ${result.success ? '✓ HEALTHY' : '✗ UNHEALTHY'}`);
     console.log(`Message: ${result.message}`);
     console.log('');
@@ -127,16 +129,17 @@ async function main() {
     console.log(`  Last quote time: ${result.details.lastQuoteTime || 'none'}`);
     console.log('');
     console.log('='.repeat(60));
-
-    await closeDb();
-
-    // Exit with error code if unhealthy (triggers GitHub Actions failure notification)
-    if (!result.success) {
-        process.exit(1);
-    }
 }
 
-main().catch(error => {
-    console.error('Health check failed:', error);
-    process.exit(1);
-});
+// Allow running locally with `npm run health-check`
+if (require.main === module) {
+    healthCheck()
+        .then(result => {
+            printHealthCheck(result);
+            if (!result.success) process.exit(1);
+        })
+        .catch(error => {
+            console.error('Health check failed:', error);
+            process.exit(1);
+        });
+}

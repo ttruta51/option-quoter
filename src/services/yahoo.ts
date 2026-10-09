@@ -63,15 +63,16 @@ export class YahooFinanceService {
                         // Skip if critical data is missing
                         if (!opt.strike || !opt.expiration) return;
 
-                        // Handle expiration - v3 API returns Date objects
+                        // Handle expiration - v3 API returns Date objects at midnight UTC, so format in UTC
+                        // (formatting in a US time zone would shift the date back a day)
                         let expirationDate: string;
                         if (opt.expiration instanceof Date) {
-                            expirationDate = DateTime.fromJSDate(opt.expiration).toFormat('yyyy-MM-dd');
+                            expirationDate = DateTime.fromJSDate(opt.expiration, { zone: 'utc' }).toFormat('yyyy-MM-dd');
                         } else if (typeof opt.expiration === 'number') {
-                            expirationDate = DateTime.fromSeconds(opt.expiration).toFormat('yyyy-MM-dd');
+                            expirationDate = DateTime.fromSeconds(opt.expiration, { zone: 'utc' }).toFormat('yyyy-MM-dd');
                         } else {
                             // Fallback - try to parse as is
-                            expirationDate = DateTime.fromJSDate(new Date(opt.expiration)).toFormat('yyyy-MM-dd');
+                            expirationDate = DateTime.fromJSDate(new Date(opt.expiration), { zone: 'utc' }).toFormat('yyyy-MM-dd');
                         }
 
                         const quote: OptionQuote = {

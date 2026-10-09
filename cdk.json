@@ -1,0 +1,14 @@
+{
+  "app": "npx ts-node --prefer-ts-exts infra/app.ts",
+  "watch": {
+    "include": [
+      "infra/**",
+      "src/**"
+    ]
+  },
+  "context": {
+    "tickers": "AAPL,MSFT,AMZN,ASML,GOOGL,IBM,INOD,NU,UEC,VRTX,FDX,KOF,CCI,SPY,RSP,TLT,^VIX,IWM,QQQ",
+    "extendedExpirationTickers": "SPY,RSP,TLT,^VIX,IWM,QQQ",
+    "monthlyBudgetUsd": 10
+  }
+}
