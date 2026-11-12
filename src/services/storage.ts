@@ -8,53 +8,10 @@ export class StorageService {
 
         console.log(`Saving ${quotes.length} quotes to database...`);
 
-        // We'll use a batched insert for performance
-        // Construct the query dynamically
-
-        // Columns: time, ticker, expiration_date, strike, type, bid, ask, last, volume, open_interest, implied_volatility, delta, prob_otm, underlying_last
-        const text = `
-      INSERT INTO option_quotes (
-        time, ticker, expiration_date, strike, type, 
-        bid, ask, last, volume, open_interest, implied_volatility, delta, prob_otm, underlying_last
-      ) VALUES 
-    `;
-
-
-        const values: any[] = [];
-        const placeholders: string[] = [];
-
-        let paramIndex = 1;
-
-        for (const q of quotes) {
-            placeholders.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`);
-
-            values.push(
-                q.timestamp,
-                q.ticker,
-                q.expirationDate,
-                q.strike,
-                q.type,
-                q.bid,
-                q.ask,
-                q.last,
-                q.volume,
-                q.openInterest,
-                q.impliedVolatility,
-                q.delta ?? null,
-                q.probOTM ?? null,
-                q.underlyingLast ?? null
-            );
-        }
-
-        const queryText = `${text} ${placeholders.join(', ')} ON CONFLICT (time, ticker, expiration_date, strike, type) DO NOTHING`;
-
         try {
-            // Note: Postgres has a limit on parameters (usually 65535). 
-            // If we have too many quotes, we should chunk them.
-            // 13 params per quote -> max ~5000 quotes per batch.
-            // Let's chunk it to be safe, say 1000 quotes per batch.
-
-            const BATCH_SIZE = 1000;
+            // The Data API caps each request at 4 MiB (SQL text + JSON-encoded
+            // parameters). A row is ~1 KB of request, so 500 rows stays well under.
+            const BATCH_SIZE = 500;
             for (let i = 0; i < quotes.length; i += BATCH_SIZE) {
                 const chunk = quotes.slice(i, i + BATCH_SIZE);
                 await this.saveBatch(chunk);

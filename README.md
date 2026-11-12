@@ -1,122 +1,100 @@
-# Option Quoter Gemini
+# Option Quoter
 
-This project fetches end-of-day option quotes for configured stock tickers using the Yahoo Finance API and stores them in a PostgreSQL database.
+Fetches end-of-day option quotes for configured stock tickers from Yahoo Finance, computes Greeks, and stores them in Aurora PostgreSQL on AWS.
 
-## Local Development Setup
+## Architecture
 
-1.  **Install Dependencies**:
-    ```bash
-    npm install
-    ```
+```
+EventBridge Scheduler ──(weekdays 5pm ET)──▶ FetchQuotes Lambda ──HTTPS──▶ Yahoo Finance
+                      ──(weekdays 6pm ET)──▶ HealthCheck Lambda
+                                                  │
+                                                  │ RDS Data API (HTTPS, IAM-authenticated)
+                                                  ▼
+                       ┌──────────── VPC (private isolated subnets, no internet) ───────────┐
+                       │   Aurora PostgreSQL Serverless v2 (scales to 0 ACU when idle)      │
+                       └────────────────────────────────────────────────────────────────────┘
+Lambda errors ──▶ CloudWatch Alarms ──▶ SNS ──▶ email
+Account spend ──▶ AWS Budget ──▶ email
+```
 
-2.  **Configuration**:
-    Create a `.env` file with your database credentials and desired tickers:
-    ```env
-    DB_HOST=localhost
-    DB_PORT=5432
-    DB_USER=postgres
-    DB_PASSWORD=your_password
-    DB_NAME=option_quotes
-    TICKERS=AAPL,MSFT,GOOGL
-    EXTENDED_EXPIRATION_TICKERS=SPY,RSP,TLT
-    ```
-    
-    **Environment Variables:**
-    - `TICKERS`: Comma-separated list of stock tickers to fetch options for (e.g., `AAPL,MSFT,SPY,TLT`)
-    - `EXTENDED_EXPIRATION_TICKERS`: Comma-separated list of tickers (from your TICKERS list) that should fetch options up to 70 days out instead of the default 14 days. Only tickers that are also in `TICKERS` will be processed. (e.g., `SPY,RSP,TLT`)
-    
-    **Note:** The risk-free rate (10-year Treasury yield) is automatically fetched from Yahoo Finance (^TNX) at runtime. No configuration needed.
-    
-    **Note:** To fetch options for a ticker, it must be in the `TICKERS` variable. The `EXTENDED_EXPIRATION_TICKERS` variable only controls the expiration window (70 vs 14 days) for tickers that are already in `TICKERS`.
+Design notes:
+- **Lambdas run outside the VPC** and reach the database through the **RDS Data API**, an HTTPS endpoint. A Lambda inside the VPC would need a NAT Gateway (~$32/month) to reach Yahoo Finance.
+- **The VPC has only private isolated subnets**: no Internet Gateway and no NAT. The database can't be reached from the internet, and its security group has no inbound rules.
+- **Aurora scales to 0 ACU** after 5 idle minutes. While paused you pay only for storage. The first query wakes it up (~15s, or 30s+ after more than 24h paused), and `src/db/index.ts` retries while it resumes.
+- **Data protection:** 7-day point-in-time backups, deletion protection, and a final snapshot if the stack is deleted.
+- **The schema is applied automatically** (`CREATE ... IF NOT EXISTS`) at the start of every fetch run.
 
-3.  **Database Setup**:
-    Ensure you have a PostgreSQL instance running. Then run:
-    ```bash
-    npm run setup-db
-    ```
+All infrastructure is defined with AWS CDK in `infra/`.
 
-4.  **Run**:
-    ```bash
-    npm run fetch
-    ```
+## Configuration
 
-## Deployment: Supabase + GitHub Actions (Free Tier)
+Settings live in `cdk.json` under `context`:
 
-This project is configured to run automatically using Supabase (free PostgreSQL) and GitHub Actions (free cron jobs).
+| Key | Meaning |
+|---|---|
+| `tickers` | Comma-separated tickers to fetch options for |
+| `extendedExpirationTickers` | Subset of `tickers` that fetch expirations up to 70 days out (others: 14 days) |
+| `monthlyBudgetUsd` | Monthly account spend that triggers a budget email |
 
-### Step 1: Set up Supabase
+`alertEmail` (where failure alerts and budget warnings are sent) is kept out of the public repo. Set it in the git-ignored `cdk.context.json`:
 
-1. Go to [supabase.com](https://supabase.com) and sign up for a free account
-2. Create a new project:
-   - Choose a project name
-   - Set a strong database password (save this!)
-   - Select a region close to you
-   - Wait for provisioning (~2 minutes)
+```json
+{
+  "alertEmail": "you@example.com"
+}
+```
 
-3. Get your connection details:
-   - Go to **Project Settings** → **Database**
-   - Find **Connection string** → **URI** (or use **Connection pooling** for port 6543)
-   - Your connection string will look like:
-     ```
-     postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
-     ```
+or pass it on each deploy with `npx cdk deploy -c alertEmail=you@example.com`.
 
-4. Initialize the database schema:
-   - Go to **SQL Editor** in the Supabase dashboard
-   - Run the contents of `src/db/schema.sql`
-   - Run the contents of `src/db/migrate-greeks.sql`
-   - Or run locally: `npm run setup-db` (after setting up `.env` with Supabase credentials)
+The risk-free rate (10-year Treasury yield, ^TNX) is fetched from Yahoo Finance at runtime and logged in the `risk_free_rate` table.
 
-### Step 2: Set up GitHub Actions
+## Deploy
 
-1. **Push your code to GitHub**:
-   - Create a new repository (public repos get free GitHub Actions)
-   - Push your code to the repository
+Prerequisites: Node 22+, AWS CLI configured, CDK bootstrapped in the account/region (`npx cdk bootstrap`).
 
-2. **Configure GitHub Secrets and Variables**:
-   - Go to your repository → **Settings** → **Secrets and variables** → **Actions**
-   
-   **Secrets** (click "New repository secret"):
-     - `DB_HOST`: Your Supabase host (e.g., `db.xxxxx.supabase.co`)
-     - `DB_PORT`: `6543` (for connection pooling, recommended) or `5432` (direct connection)
-     - `DB_USER`: `postgres`
-     - `DB_PASSWORD`: Your Supabase database password
-     - `DB_NAME`: `postgres`
-   
-   **Variables** (click "Variables" tab, then "New repository variable"):
-     - `TICKERS`: Comma-separated list of tickers to fetch options for (e.g., `AAPL,MSFT,SPY,TLT`)
-     - `EXTENDED_EXPIRATION_TICKERS`: Comma-separated list of tickers (from your TICKERS list) that should fetch 70 days of expirations instead of 14 days (e.g., `SPY,RSP,TLT`). Only tickers that are also in `TICKERS` will be processed. Leave empty or omit for default 14-day behavior for all tickers.
-     
-     **Important:** 
-     - To fetch options for any ticker (including SPY, RSP, TLT), you must add it to the `TICKERS` variable. The `EXTENDED_EXPIRATION_TICKERS` variable only controls how many days of expirations to fetch (70 vs 14) for tickers that are already in `TICKERS`.
-     - The risk-free rate (10-year Treasury yield) is automatically fetched from Yahoo Finance (^TNX) at runtime. No configuration needed.
+```bash
+npm install
+npx cdk diff                  # preview changes
+npx cdk deploy                # create/update the stack
+```
 
-3. **Test the workflow**:
-   - Go to **Actions** tab in your repository
-   - Select **Daily Option Quote Fetch** workflow
-   - Click **Run workflow** to manually trigger it
-   - Check the logs to verify it runs successfully
+After the first deploy, confirm the SNS subscription email AWS sends you, or you won't receive alerts.
 
-### Step 3: Verify Scheduled Runs
+To change tickers, edit `cdk.json` and run `npx cdk deploy` again.
 
-The workflow is configured to run automatically:
-- **Schedule**: Every weekday (Monday-Friday) at 5:00 PM UTC
-- **Manual trigger**: Available via "Run workflow" button
+## Run manually
 
-To change the schedule, edit `.github/workflows/daily-fetch.yml` and update the cron expression.
+Trigger the Lambdas on demand (function names are in the stack outputs):
 
-### Notes
+```bash
+aws lambda invoke --function-name <FetchFunctionName> /dev/stdout
+aws lambda invoke --function-name <HealthCheckFunctionName> /dev/stdout
+```
 
-- **Connection Pooling**: Use port `6543` for connection pooling (better for serverless environments like GitHub Actions)
-- **Public vs Private Repos**: Public repositories get free GitHub Actions. Private repositories require GitHub Pro or paid plans.
-- **Supabase Free Tier**: Includes 500MB database storage and 2GB bandwidth per month (usually sufficient for daily option quotes)
-- **Timezone**: The cron job runs at 17:00 UTC. Adjust the cron expression in the workflow file if you need a different time.
+Or run locally against the deployed database. Put the stack outputs in `.env`:
 
-## Project Structure
+```env
+DB_CLUSTER_ARN=arn:aws:rds:us-east-1:...:cluster:...
+DB_SECRET_ARN=arn:aws:secretsmanager:us-east-1:...:secret:...
+DB_NAME=option_quotes
+TICKERS=AAPL,MSFT
+EXTENDED_EXPIRATION_TICKERS=
+```
 
-*   `src/config`: Configuration loading.
-*   `src/db`: Database connection management and setup scripts.
-*   `src/models`: TypeScript interfaces.
-*   `src/services`: Business logic (fetching, storing).
-*   `src/utils`: Helper functions.
-*   `.github/workflows`: GitHub Actions workflow definitions.
+```bash
+npm run fetch           # fetch and save quotes
+npm run health-check    # verify today's data
+npm run setup-db        # apply the schema (also done automatically by fetch)
+npm run typecheck
+```
+
+## Query the data
+
+The easiest way is the **RDS Query Editor** in the AWS console (RDS → Query editor). It uses the Data API, so no VPN or bastion host is needed. Choose the cluster, pick "Connect with a Secrets Manager ARN", and paste the `DbSecretArn` output.
+
+## Approximate cost
+
+Lambda, EventBridge Scheduler, CloudWatch Logs and SNS email fall within AWS's always-free limits at this volume. The remaining costs are roughly:
+- Aurora storage: ~$0.10/GB-month, plus I/O
+- Aurora compute: a few minutes of 0.5 ACU per weekday, cents per month
+- Secrets Manager: $0.40/month for the database credentials

@@ -8,13 +8,13 @@ const extendedExpirationTickers = (process.env.EXTENDED_EXPIRATION_TICKERS || ''
 
 export const config = {
     db: {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432', 10),
-        user: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || 'password',
+        // Aurora cluster ARN and the Secrets Manager secret holding its credentials (used by the Data API)
+        clusterArn: process.env.DB_CLUSTER_ARN || '',
+        secretArn: process.env.DB_SECRET_ARN || '',
         database: process.env.DB_NAME || 'option_quotes',
     },
     tickers: (process.env.TICKERS || '').split(',').map(t => t.trim()).filter(t => t.length > 0),
+    extendedExpirationTickers,
     // Risk-free rate is now fetched dynamically, but we keep this for backward compatibility
     // It will be set at runtime by fetching from Treasury.gov
     riskFreeRate: 0.045, // This will be overridden at runtime
